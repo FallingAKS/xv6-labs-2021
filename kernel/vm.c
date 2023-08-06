@@ -432,3 +432,54 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+// lab3
+void vmprintRec(pagetable_t pagetable, int level)
+{
+    // there are 2^9 = 512 PTEs in a page table.
+    for (int i = 0; i < 512; i++) {
+        pte_t pte = pagetable[i];
+        if ((pte & PTE_V) && level <= 3) {
+            //三级
+            uint64 child = PTE2PA(pte);
+            switch (level) {
+                case 1: printf(".."); break;
+                case 2: printf(".. .."); break;
+                case 3: printf(".. .. .."); break;
+                default: break;
+            }
+            printf("%d: pte %p pa %p\n", i, pte, child);
+            vmprintRec((pagetable_t)child, level + 1);
+        }
+    }
+}
+
+void vmprint(pagetable_t pagetable)
+{
+    printf("page table %p\n", pagetable);
+    vmprintRec(pagetable, 1);
+}
+
+uint64 pgaccess(pagetable_t pagetable, uint64 va)
+{
+    if (va >= MAXVA) {
+        panic("walk");
+        return -1;
+    }
+
+    uint64 mask = 0;
+    for (int count = 0; count < 32; count++, va += PGSIZE) {
+        pte_t*      pte = 0;
+        pagetable_t p   = pagetable;
+        for (int level = 2; level >= 0; level--) {
+            pte = &p[PX(level, va)];
+            if (*pte & PTE_V)
+                p = (pagetable_t)PTE2PA(*pte);
+        }
+        if (*pte & PTE_A) {
+            mask |= (1L << count);  //设位
+            *pte &= ~(PTE_A);
+        }
+    }
+    return mask;
+}
