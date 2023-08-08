@@ -77,8 +77,18 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
-    yield();
+  if (which_dev == 2) {
+      // lab4
+      if (p->interval != 0 && ++p->passedticks == p->interval) {
+          // sizeof(struct trapframe)大概为300B左右
+          p->trapframecopy = p->trapframe + 512;
+          memmove(p->trapframecopy, p->trapframe, sizeof(struct trapframe));
+          // p->passedticks    = 0;
+          p->trapframe->epc = p->handler;
+      }
+
+      yield();
+  }
 
   usertrapret();
 }
