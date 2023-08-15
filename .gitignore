@@ -25,3 +25,4 @@ barrier
 
 .vscode/
 .clang-format
+*.txt
