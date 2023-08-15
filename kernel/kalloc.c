@@ -23,9 +23,20 @@ struct {
   struct run *freelist;
 } kmem;
 
+// lab5
+struct
+{
+    struct spinlock lock;
+    int             num;
+} refpage[(PHYSTOP - KERNBASE) / PGSIZE];  //用户进程的空间范围
+
 void
 kinit()
 {
+    // lab5
+    for (int i = 0; i < (PHYSTOP - KERNBASE) / PGSIZE; i++) {
+        initlock(&refpage[i].lock, "refpage");
+    }
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }
@@ -35,8 +46,11 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfree(p);
+  for (; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
+      // lab5
+      inrefnum(p);
+      kfree(p);
+  }
 }
 
 // Free the page of physical memory pointed at by v,
@@ -50,6 +64,10 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+
+  // lab5
+  if (derefnum(pa))
+      return;
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -76,7 +94,34 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
+  // lab5
+  inrefnum(r);
+
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+// lab5
+void inrefnum(void* pa)
+{
+    if ((uint64)pa < KERNBASE) {
+        return;
+    }
+    uint64 panum = ((uint64)pa - KERNBASE) / PGSIZE;
+    acquire(&refpage[panum].lock);
+    refpage[panum].num++;
+    release(&refpage[panum].lock);
+}
+
+int derefnum(void* pa)
+{
+    if ((uint64)pa < KERNBASE) {
+        return 0;
+    }
+    uint64 panum = ((uint64)pa - KERNBASE) / PGSIZE;
+    acquire(&refpage[panum].lock);
+    int ret = --refpage[panum].num;
+    release(&refpage[panum].lock);
+    return ret;
 }

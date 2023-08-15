@@ -184,3 +184,8 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// lab5
+void   inrefnum(void* pa);
+int    derefnum(void* pa);
+uint64 walkcowaddr(pagetable_t, uint64);
