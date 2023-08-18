@@ -21,12 +21,17 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];  // lab8
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+    // lab8
+    for (int i = 0; i < NCPU; ++i) {
+        char name[8];
+        snprintf(name, 8, "kmem_%d", i);
+        initlock(&kmem[i].lock, name);
+    }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,25 +61,63 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  // lab8
+  //不许中断
+  push_off();
+  int cid = cpuid();
+  pop_off();
+  acquire(&kmem[cid].lock);
+  r->next            = kmem[cid].freelist;
+  kmem[cid].freelist = r;
+  release(&kmem[cid].lock);
+}
+
+// lab8
+void steal(int cid)
+{
+    int stolen_num = 0;
+    for (int i = 0; i < NCPU; ++i) {
+        if (i == cid)
+            continue;
+        acquire(&kmem[i].lock);
+
+        struct run* r = kmem[i].freelist;
+        while (r && stolen_num < NSTEAL) {
+            kmem[i].freelist   = r->next;
+            r->next            = kmem[cid].freelist;
+            kmem[cid].freelist = r;
+            r                  = kmem[i].freelist;
+            ++stolen_num;
+        }
+
+        release(&kmem[i].lock);
+        if (stolen_num == NSTEAL)
+            break;
+    }
 }
 
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
-void *
-kalloc(void)
+void* kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  // lab8
+  //不许中断
+  push_off();
+  int cid = cpuid();
+  pop_off();
+  acquire(&kmem[cid].lock);
+
+  if (!kmem[cid].freelist) {
+      steal(cid);
+  }
+
+  r = kmem[cid].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+      kmem[cid].freelist = r->next;
+  release(&kmem[cid].lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
