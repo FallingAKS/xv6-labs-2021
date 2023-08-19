@@ -83,17 +83,17 @@ struct trapframe {
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Virtual Memory Area - lab10
-struct vm_area
+struct vma
 {
-  uint64 addr;    // mmap address
-  int len;        // mmap memory length
-  int prot;       // permission
-  int flags;      // the mmap flags
-  int offset;     // the file offset
-  struct file *f; // pointer to the mapped file
+    uint64       addr;    // mmap address
+    int          len;     // mmap memory length
+    int          prot;    // permission
+    int          flags;   // the mmap flags
+    int          offset;  // the file offset
+    struct file* f;       // pointer to the mapped file
 };
 
-#define NVMA 16 // the number of VMA in a process - lab10
+#define NVMA 16  // lab10
 
 // Per-process state
 struct proc {
@@ -118,5 +118,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  struct vm_area vma[NVMA];    // VMA array - lab10
+
+  // lab10
+  struct vma vma[NVMA];
 };

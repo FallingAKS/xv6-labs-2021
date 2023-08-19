@@ -184,3 +184,7 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// lab10
+int uvmgetdirty(pagetable_t pagetable, uint64 va);
+int uvmsetdirty(pagetable_t pagetable, uint64 va);
