@@ -283,10 +283,8 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
-// recursively follow the symlinks - lab9-2
-// Caller must hold ip->lock
-// and when function returned, it holds ip->lock of returned ip
-static struct inode* follow_symlink(struct inode* ip)
+// lab9
+static struct inode* getsymlink(struct inode* ip)
 {
     uint inums[NSYMLINK];
     int  i, j;
@@ -294,7 +292,7 @@ static struct inode* follow_symlink(struct inode* ip)
 
     for (i = 0; i < NSYMLINK; ++i) {
         inums[i] = ip->inum;
-        // read the target path from symlink file
+
         if (readi(ip, 0, (uint64)target, 0, MAXPATH) <= 0) {
             iunlockput(ip);
             printf("open_symlink: open symlink failed\n");
@@ -302,7 +300,6 @@ static struct inode* follow_symlink(struct inode* ip)
         }
         iunlockput(ip);
 
-        // get the inode of target path
         if ((ip = namei(target)) == 0) {
             printf("open_symlink: path \"%s\" is not exist\n", target);
             return 0;
@@ -363,10 +360,9 @@ sys_open(void)
     return -1;
   }
 
-  // handle the symlink - lab9-2
+  // lab9
   if (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0) {
-      if ((ip = follow_symlink(ip)) == 0) {
-          // 此处不用调用iunlockput()释放锁,因为在follow_symlinktest()返回失败时ip的锁在函数内已经被释放
+      if ((ip = getsymlink(ip)) == 0) {
           end_op();
           return -1;
       }
@@ -535,7 +531,7 @@ sys_pipe(void)
   return 0;
 }
 
-// lab9-2
+// lab9
 uint64 sys_symlink(void)
 {
     char          target[MAXPATH], path[MAXPATH];
@@ -547,12 +543,11 @@ uint64 sys_symlink(void)
     }
 
     begin_op();
-    // create the symlink's inode
+
     if ((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
         end_op();
         return -1;
     }
-    // write the target path to the inode
     if (writei(ip, 0, (uint64)target, 0, n) != n) {
         iunlockput(ip);
         end_op();

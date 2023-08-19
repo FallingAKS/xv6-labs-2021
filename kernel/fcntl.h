@@ -4,4 +4,5 @@
 #define O_CREATE  0x200
 #define O_TRUNC   0x400
 
+// lab9
 #define O_NOFOLLOW 0x004

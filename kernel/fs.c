@@ -399,17 +399,14 @@ static uint bmap(struct inode* ip, uint bn)
         brelse(bp);
         return addr;
     }
-
-    // doubly-indirect block - lab9-1
+    // lab9
     bn -= NINDIRECT;
-    if (bn < NDOUBLYINDIRECT) {
-        // get the address of doubly-indirect block
+    if (bn < NBIINDIRECT) {
         if ((addr = ip->addrs[NDIRECT + 1]) == 0) {
             ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
         }
         bp = bread(ip->dev, addr);
         a  = (uint*)bp->data;
-        // get the address of singly-indirect block
         if ((addr = a[bn / NINDIRECT]) == 0) {
             a[bn / NINDIRECT] = addr = balloc(ip->dev);
             log_write(bp);
@@ -418,7 +415,6 @@ static uint bmap(struct inode* ip, uint bn)
         bp = bread(ip->dev, addr);
         a  = (uint*)bp->data;
         bn %= NINDIRECT;
-        // get the address of direct block
         if ((addr = a[bn]) == 0) {
             a[bn] = addr = balloc(ip->dev);
             log_write(bp);
@@ -434,9 +430,9 @@ static uint bmap(struct inode* ip, uint bn)
 // Caller must hold ip->lock.
 void itrunc(struct inode* ip)
 {
-    int         i, j, k;   // lab9-1
-    struct buf *bp, *bp2;  // lab9-1
-    uint *      a, *a2;    // lab9-1
+    int         i, j;
+    struct buf *bp, *bp2;
+    uint *      a, *a2;
 
     for (i = 0; i < NDIRECT; i++) {
         if (ip->addrs[i]) {
@@ -456,7 +452,8 @@ void itrunc(struct inode* ip)
         bfree(ip->dev, ip->addrs[NDIRECT]);
         ip->addrs[NDIRECT] = 0;
     }
-    // free the doubly-indirect block - lab9-1
+
+    // lab9
     if (ip->addrs[NDIRECT + 1]) {
         bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
         a  = (uint*)bp->data;
@@ -464,7 +461,7 @@ void itrunc(struct inode* ip)
             if (a[j]) {
                 bp2 = bread(ip->dev, a[j]);
                 a2  = (uint*)bp2->data;
-                for (k = 0; k < NINDIRECT; ++k) {
+                for (int k = 0; k < NINDIRECT; ++k) {
                     if (a2[k]) {
                         bfree(ip->dev, a2[k]);
                     }

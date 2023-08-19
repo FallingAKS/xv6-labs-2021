@@ -2,6 +2,7 @@
 #define T_FILE    2   // File
 #define T_DEVICE  3   // Device
 
+// lab9
 #define T_SYMLINK 4
 
 struct stat {
